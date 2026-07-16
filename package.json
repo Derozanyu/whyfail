@@ -1,0 +1,20 @@
+{
+  "name": "whyfail-local",
+  "version": "0.5.0",
+  "description": "Evidence-driven command failure diagnostics with a local web UI.",
+  "type": "module",
+  "bin": {
+    "whyfail": "./src/cli.js",
+    "wf": "./src/cli.js"
+  },
+  "scripts": {
+    "start": "node src/cli.js",
+    "test": "node --test",
+    "demo": "node src/cli.js run --no-web -- node examples/failing-esm.mjs",
+    "check-demo": "node src/cli.js check whyfail.example.yaml --no-web"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "license": "MIT"
+}

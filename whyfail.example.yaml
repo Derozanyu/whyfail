@@ -1,0 +1,8 @@
+name: whyfail-demo
+
+commands:
+  - name: syntax-check
+    run: ["node", "--check", "src/cli.js"]
+
+  - name: multi-file-demo
+    run: ["node", "examples/multi-file/main.mjs"]
