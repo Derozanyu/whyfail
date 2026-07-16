@@ -37,7 +37,16 @@ WhyFail 是一个本地优先的命令失败诊断工具。你只需要提供项
 - Git（使用 `git clone` 安装时需要）。
 - 目标项目对应的工具链。例如 Python 项目需要 `python`，Rust 项目需要 `cargo`，仓颉项目需要 `cjc`/`cjpm`。
 
-先确认 Node.js 和 npm 可用：
+### 还没有 Node.js？
+
+Node.js 是 WhyFail 当前版本的运行环境，npm 会随 Node.js 一起安装，不需要单独下载 npm。
+
+1. 打开 [Node.js 官方下载页](https://nodejs.org/en/download/)。
+2. 选择 **LTS** 版本，不要选择 Current 实验版本。
+3. Windows 用户下载安装 `.msi` 安装包，macOS 用户下载安装 `.pkg`，按默认选项完成安装；Linux 用户按照下载页提供的包管理器或版本管理器步骤安装。
+4. 安装完成后关闭并重新打开 PowerShell/终端。
+
+然后确认 Node.js 和 npm 可用：
 
 ```powershell
 node --version
@@ -395,7 +404,16 @@ Reports stay on your computer by default. WhyFail does not automatically modify 
 - Git when installing with `git clone`.
 - The toolchain required by the target project. For example, Python projects need `python`, Rust projects need `cargo`, and Cangjie projects need `cjc`/`cjpm`.
 
-Confirm that Node.js and npm are available:
+### Do not have Node.js yet?
+
+Node.js is the runtime required by the current WhyFail release. npm is installed together with Node.js and does not need a separate download.
+
+1. Open the [official Node.js download page](https://nodejs.org/en/download/).
+2. Select an **LTS** release rather than the Current release.
+3. On Windows, install the `.msi` package; on macOS, install the `.pkg`; on Linux, follow the package-manager or version-manager instructions on the download page.
+4. Close and reopen PowerShell or your terminal after installation.
+
+Then confirm that Node.js and npm are available:
 
 ```powershell
 node --version
