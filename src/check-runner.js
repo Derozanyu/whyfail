@@ -1,8 +1,9 @@
 import path from 'node:path';
+import { buildBlackBox, captureBlackBox } from './black-box.js';
 import { loadCheckConfig } from './check-config.js';
 import { runCommand } from './runner.js';
 import { collectContext } from './context.js';
-import { makeRunId, saveRun } from './storage.js';
+import { findLastSuccessfulRun, makeRunId, saveRun } from './storage.js';
 import { redact } from './redact.js';
 
 const localized = (en, zh) => ({ en, 'zh-CN': zh });
@@ -15,6 +16,7 @@ export async function runCheck(configFile, options = {}) {
 export async function runCommandSuite(config, options = {}) {
   if (!config?.commands?.length) throw new Error('No commands were selected for this project.');
   const startedAt = new Date();
+  const blackBoxBefore = captureBlackBox(config.root, 'before');
   const children = [];
   for (const item of config.commands) {
     options.onCommand?.(item);
@@ -24,12 +26,17 @@ export async function runCommandSuite(config, options = {}) {
   }
   const endedAt = new Date();
   const failed = children.filter((item) => item.status === 'failed');
+  const command = `${options.commandPrefix || 'check'}:${config.name}`;
+  const redactedRoot = redact(config.root);
+  const blackBoxAfter = captureBlackBox(config.root, 'after');
+  const baseline = findLastSuccessfulRun({ command, cwd: redactedRoot, before: startedAt.toISOString() });
   const run = {
-    id: makeRunId(startedAt), kind: options.kind || 'check', name: config.name, command: `${options.commandPrefix || 'check'}:${config.name}`,
-    commandParts: [], cwd: redact(config.root), startedAt: startedAt.toISOString(), endedAt: endedAt.toISOString(),
+    id: makeRunId(startedAt), kind: options.kind || 'check', name: config.name, command,
+    commandParts: [], cwd: redactedRoot, startedAt: startedAt.toISOString(), endedAt: endedAt.toISOString(),
     durationMs: endedAt - startedAt, exitCode: failed.length ? 1 : 0, signal: null,
     status: failed.length ? 'failed' : 'passed', stdout: '', stderr: '', children,
-    context: { ...collectContext(config.root, `${options.commandPrefix || 'check'}:${config.name}`), ...(options.context || {}) }
+    context: { ...collectContext(config.root, command), ...(options.context || {}) },
+    blackBox: buildBlackBox(blackBoxBefore, blackBoxAfter, baseline)
   };
   run.diagnosis = {
     source: 'check-summary', code: failed.length ? 'check_suite_failed' : 'check_suite_passed',

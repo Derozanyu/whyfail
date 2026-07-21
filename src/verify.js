@@ -55,7 +55,7 @@ export function compareRuns(original, rerun) {
   };
 }
 
-function restoreLocalPath(value) {
+export function restoreLocalPath(value) {
   const text = String(value || '');
   if (text.includes('[REDACTED')) return null;
   if (text === '~') return os.homedir();

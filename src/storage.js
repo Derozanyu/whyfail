@@ -55,3 +55,13 @@ export function loadRun(id) {
     return null;
   }
 }
+
+export function findLastSuccessfulRun({ command, cwd, before }) {
+  return listRuns().find((run) =>
+    run.status === 'passed'
+    && run.command === command
+    && run.cwd === cwd
+    && run.blackBox
+    && (!before || String(run.startedAt) < String(before))
+  ) || null;
+}

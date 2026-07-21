@@ -4,17 +4,19 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>WhyFail · Local diagnostics</title>
+  <link rel="icon" href="/icon.svg" type="image/svg+xml">
   <script>(()=>{const q=new URLSearchParams(location.search).get('theme');document.documentElement.dataset.theme=(q==='dark'||q==='light'?q:null)||localStorage.getItem('whyfail-theme')||(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light')})()</script>
   <link rel="stylesheet" href="/styles.css">
 </head>
 <body>
   <div class="shell">
     <aside class="sidebar">
-      <div class="brand"><span class="brand-mark">W</span><div><strong>WhyFail</strong><small data-i18n="local">本地诊断台</small></div></div>
+      <div class="brand"><span class="brand-mark"><img src="/icon.svg" alt=""></span><div><strong>WhyFail</strong><small data-i18n="local">本地诊断台</small></div></div>
       <div class="privacy"><span></span><span data-i18n="private">数据保留在本机</span></div>
       <div class="history-head"><span data-i18n="history">诊断历史</span><button id="refresh" title="Refresh">↻</button></div>
       <nav id="run-list" class="run-list"></nav>
-      <div class="sidebar-foot"><span id="run-count">0 runs</span><span>v0.5.0</span></div>
+      <button id="settings-open" class="settings-open" type="button"><span aria-hidden="true">⚙</span><span id="settings-open-label">设置</span></button>
+      <div class="sidebar-foot"><span id="run-count">0 runs</span><span>v0.8.0</span></div>
       <div class="design-credit">Light · Esther Design System<br>Dark · Ferrari DESIGN.md analysis</div>
     </aside>
 
@@ -22,8 +24,7 @@
       <header class="topbar">
         <div class="breadcrumbs"><span data-i18n="workspace">工作台</span><b>/</b><span id="crumb">—</span></div>
         <div class="controls">
-          <button id="theme-toggle" class="theme-toggle" type="button"><span id="theme-icon">☾</span><span id="theme-label">深色</span></button>
-          <select id="language" aria-label="Language"><option value="zh-CN">简体中文</option><option value="en">English</option></select>
+          <button id="desktop-project" class="desktop-project hidden" type="button"><span aria-hidden="true">＋</span><span id="desktop-project-label">选择项目</span></button>
           <button id="export" class="ghost" data-i18n="export">导出 Markdown</button>
         </div>
       </header>
@@ -90,6 +91,41 @@
             <div id="sources" class="sources-list"></div>
           </article>
 
+          <article id="repair-card" class="card repair-card hidden">
+            <div class="card-label"><span id="repair-kicker" class="card-kicker">Agent 修复</span><span id="repair-status-badge" class="badge">等待用户决定</span></div>
+            <div id="repair-idle" class="repair-idle">
+              <div>
+                <h2 id="repair-title">让 Agent 在隔离副本中尝试修复</h2>
+                <p id="repair-description">WhyFail 不会自动修改代码。只有你明确确认后，Agent 才会收到诊断证据和你的修改要求。</p>
+              </div>
+              <button id="repair-open" class="repair-primary" type="button">交给 Agent 修复</button>
+            </div>
+            <div id="repair-form" class="repair-form hidden">
+              <label for="repair-instruction" id="repair-instruction-label">你希望 Agent 怎么修改？</label>
+              <textarea id="repair-instruction" maxlength="4000" rows="5" placeholder="例如：尽量只做最小修改；不要重构登录模块；保持现有函数名称。"></textarea>
+              <div class="repair-options">
+                <label><span id="repair-attempts-label">最多尝试次数</span><select id="repair-attempts"><option>1</option><option>2</option><option selected>3</option><option>4</option><option>5</option></select></label>
+                <div class="repair-agent"><span id="repair-agent-label">Agent</span><code>Codex / configured local Agent</code></div>
+              </div>
+              <label class="repair-confirm"><input id="repair-confirm" type="checkbox"><span id="repair-confirm-label">我确认开始修复。修改发生在隔离副本中，原项目不会被自动覆盖。</span></label>
+              <div class="repair-actions"><button id="repair-cancel" type="button">取消</button><button id="repair-start" class="repair-primary" type="button" disabled>开始修复</button></div>
+              <p id="repair-error" class="repair-error hidden"></p>
+            </div>
+            <div id="repair-session" class="repair-session hidden">
+              <div id="repair-summary" class="repair-summary"></div>
+              <div id="repair-user-prompt" class="repair-user-prompt"></div>
+              <div id="repair-timeline" class="repair-timeline"></div>
+              <div id="repair-result" class="repair-result"></div>
+            </div>
+          </article>
+
+          <article id="blackbox-card" class="card blackbox-card hidden">
+            <div class="card-label"><span class="card-kicker">黑匣子记录</span><span id="blackbox-badge" class="badge">已记录</span></div>
+            <div id="blackbox-baseline" class="blackbox-baseline"></div>
+            <div id="blackbox-facts" class="blackbox-facts"></div>
+            <div id="blackbox-changes" class="blackbox-changes"></div>
+          </article>
+
           <article class="card logs-card">
             <div class="log-head"><div class="card-label"><span class="card-kicker" data-i18n="rawLogs">原始日志</span></div><div class="tabs"><button class="tab active" data-stream="stderr">stderr</button><button class="tab" data-stream="stdout">stdout</button><button id="copy-log" class="tab" data-i18n="copy">复制</button></div></div>
             <pre id="logs"></pre>
@@ -98,6 +134,36 @@
       </section>
     </main>
   </div>
+  <div id="settings-layer" class="settings-layer hidden" aria-hidden="true">
+    <button id="settings-backdrop" class="settings-backdrop" type="button" aria-label="Close settings"></button>
+    <section class="settings-panel" role="dialog" aria-modal="true" aria-labelledby="settings-title">
+      <header class="settings-header">
+        <div><span id="settings-kicker">WhyFail 偏好</span><h2 id="settings-title">设置</h2></div>
+        <button id="settings-close" class="settings-close" type="button" aria-label="Close">×</button>
+      </header>
+
+      <div class="settings-body">
+        <section class="settings-group">
+          <div class="settings-group-head"><span>01</span><div><h3 id="settings-appearance-title">外观与语言</h3><p id="settings-appearance-copy">调整报告的阅读方式，只影响本机。</p></div></div>
+          <label class="settings-field"><span id="settings-theme-label">颜色主题</span><button id="theme-toggle" class="theme-toggle settings-control" type="button"><span id="theme-icon">☾</span><span id="theme-label">深色</span></button></label>
+          <label class="settings-field"><span id="settings-language-label">界面语言</span><select id="language" class="settings-control" aria-label="Language"><option value="zh-CN">简体中文</option><option value="en">English</option></select></label>
+        </section>
+
+        <section class="settings-group">
+          <div class="settings-group-head"><span>02</span><div><h3 id="settings-ai-title">AI 深度分析</h3><p id="settings-ai-copy">可选。未配置时继续使用本地规则诊断。</p></div></div>
+          <label class="settings-field settings-field-stack"><span>Base URL</span><input id="settings-base-url" type="url" maxlength="2048" placeholder="https://api.openai.com/v1" autocomplete="off"></label>
+          <label class="settings-field settings-field-stack"><span>Model</span><input id="settings-model" type="text" maxlength="100" placeholder="gpt-4.1-mini" autocomplete="off"></label>
+          <label class="settings-field settings-field-stack"><span>API Key</span><div class="secret-input"><input id="settings-api-key" type="password" maxlength="4096" placeholder="输入新 Key；留空则保持不变" autocomplete="new-password"><button id="settings-key-toggle" type="button">显示</button></div></label>
+          <label class="settings-clear-key"><input id="settings-clear-key" type="checkbox"><span id="settings-clear-key-label">删除已保存的 API Key</span></label>
+          <div id="settings-api-status" class="settings-api-status" data-status="none">尚未配置 API Key</div>
+          <p id="settings-security-note" class="settings-security-note">桌面版使用 Windows 安全存储加密 Key；Key 不会写入诊断报告或黑匣子。</p>
+        </section>
+      </div>
+
+      <footer class="settings-actions"><button id="settings-cancel" type="button">取消</button><button id="settings-save" class="settings-save" type="button">保存设置</button></footer>
+    </section>
+  </div>
+  <div id="desktop-toast" class="desktop-toast hidden" role="status" aria-live="polite"></div>
   <script type="module" src="/app.js"></script>
 </body>
 </html>

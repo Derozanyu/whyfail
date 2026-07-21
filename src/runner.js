@@ -1,7 +1,8 @@
 import { spawn } from 'node:child_process';
+import { buildBlackBox, captureBlackBox } from './black-box.js';
 import { collectContext } from './context.js';
 import { diagnose } from './diagnose.js';
-import { makeRunId, saveRun } from './storage.js';
+import { findLastSuccessfulRun, makeRunId, saveRun } from './storage.js';
 import { redact } from './redact.js';
 import { assessSuccess } from './success.js';
 
@@ -9,6 +10,7 @@ export async function runCommand(commandParts, options = {}) {
   if (!commandParts.length) throw new Error('No command provided after --');
   const cwd = options.cwd || process.cwd();
   const startedAt = new Date();
+  const blackBoxBefore = captureBlackBox(cwd, 'before');
   let stdout = '';
   let stderr = '';
 
@@ -44,12 +46,15 @@ export async function runCommand(commandParts, options = {}) {
   if (result.spawnError) stderr += `\nWhyFail runner: ${result.spawnError}\n`;
   const endedAt = new Date();
   const command = commandParts.map(quotePart).join(' ');
+  const redactedCwd = redact(cwd);
+  const blackBoxAfter = captureBlackBox(cwd, 'after');
+  const baseline = findLastSuccessfulRun({ command, cwd: redactedCwd, before: startedAt.toISOString() });
   const run = {
     id: makeRunId(startedAt),
     kind: 'command',
     command,
     commandParts,
-    cwd: redact(cwd),
+    cwd: redactedCwd,
     startedAt: startedAt.toISOString(),
     endedAt: endedAt.toISOString(),
     durationMs: endedAt - startedAt,
@@ -58,7 +63,8 @@ export async function runCommand(commandParts, options = {}) {
     status: result.exitCode === 0 ? 'passed' : 'failed',
     stdout: redact(stdout),
     stderr: redact(stderr),
-    context: collectContext(cwd, command, `${stderr}\n${stdout}`)
+    context: collectContext(cwd, command, `${stderr}\n${stdout}`),
+    blackBox: buildBlackBox(blackBoxBefore, blackBoxAfter, baseline)
   };
   run.diagnosis = run.status === 'failed' ? await diagnose(run) : assessSuccess(run);
   saveRun(run);
@@ -72,7 +78,8 @@ export async function analyzeLog(content, options = {}) {
     id: makeRunId(now), kind: 'imported-log', command: options.label || 'Imported log', commandParts: [],
     cwd: redact(cwd), startedAt: now.toISOString(), endedAt: now.toISOString(), durationMs: 0,
     exitCode: null, signal: null, status: 'failed', stdout: '', stderr: redact(content),
-    context: collectContext(cwd, options.label || '', content)
+    context: collectContext(cwd, options.label || '', content),
+    blackBox: buildBlackBox(captureBlackBox(cwd, 'imported-log'), null, null)
   };
   run.diagnosis = await diagnose(run);
   saveRun(run);

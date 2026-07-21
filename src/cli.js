@@ -8,6 +8,7 @@ import { runCheck } from './check-runner.js';
 import { runAutoCheck } from './auto-runner.js';
 import { detectAutoPlan } from './auto-detect.js';
 import { verifyRun } from './verify.js';
+import { startRepairSession } from './repair.js';
 
 const args = process.argv.slice(2);
 const command = args[0];
@@ -25,6 +26,8 @@ try {
     await handleAuto(args.slice(1));
   } else if (command === 'verify') {
     await handleVerify(args.slice(1));
+  } else if (command === 'heal') {
+    await handleHeal(args.slice(1));
   } else if (command === 'ui') {
     await serve(args.slice(1));
   } else if (command === 'data-dir') {
@@ -49,6 +52,25 @@ async function handleVerify(values) {
   if (!noWeb) await serve([], rerun.id);
   else console.log('Open the report later with: whyfail ui');
   process.exitCode = rerun.exitCode ?? (rerun.status === 'failed' ? 1 : 0);
+}
+
+async function handleHeal(values) {
+  const id = values.find((value) => !value.startsWith('--'));
+  if (!id) throw new Error('Usage: whyfail heal <run-id> [--instruction TEXT] [--max-attempts 3] [--no-web]');
+  const instructionIndex = values.indexOf('--instruction');
+  const attemptsIndex = values.indexOf('--max-attempts');
+  const instruction = instructionIndex >= 0 ? values[instructionIndex + 1] || '' : '';
+  const maxAttempts = attemptsIndex >= 0 ? Number(values[attemptsIndex + 1]) : 3;
+  const noWeb = values.includes('--no-web');
+  console.log(`WhyFail · starting isolated Agent repair: ${id}\n`);
+  const session = await startRepairSession(id, { instruction, maxAttempts });
+  console.log(`WhyFail · repair ${session.status} · ${session.attempts.length} attempt(s)`);
+  console.log(`Repair ID: ${session.id}`);
+  console.log(`Workspace: ${session.workspace}`);
+  if (session.stopReason) console.log(`Stop reason: ${session.stopReason}`);
+  if (!noWeb) await serve([], id);
+  else console.log('Open the report later with: whyfail ui');
+  process.exitCode = session.status === 'resolved' ? 0 : 1;
 }
 
 async function handleRun(values) {
@@ -136,6 +158,6 @@ function readStdin() {
 }
 
 function help(exitCode = 0) {
-  console.log(`WhyFail 0.5.0\n\nUsage:\n  whyfail auto [--cwd PATH] [--plan] [--no-web]\n  whyfail run [--no-web] [--cwd PATH] -- <command> [args...]\n  whyfail check [whyfail.yaml|whyfail.json] [--no-web]\n  whyfail verify <run-id> [--no-web]\n  whyfail analyze <log-file|->\n  whyfail ui [--port 3967]\n  whyfail data-dir\n\nAI provider (optional):\n  WHYFAIL_API_KEY, WHYFAIL_BASE_URL, WHYFAIL_MODEL\n`);
+  console.log(`WhyFail 0.8.0\n\nUsage:\n  whyfail auto [--cwd PATH] [--plan] [--no-web]\n  whyfail run [--no-web] [--cwd PATH] -- <command> [args...]\n  whyfail check [whyfail.yaml|whyfail.json] [--no-web]\n  whyfail verify <run-id> [--no-web]\n  whyfail heal <run-id> [--instruction TEXT] [--max-attempts 3] [--no-web]\n  whyfail analyze <log-file|->\n  whyfail ui [--port 3967]\n  whyfail data-dir\n\nDesktop app (from a source checkout):\n  npm run desktop\n\nAI diagnosis (optional):\n  WHYFAIL_API_KEY, WHYFAIL_BASE_URL, WHYFAIL_MODEL\n\nRepair Agent (optional):\n  WHYFAIL_AGENT_COMMAND, WHYFAIL_AGENT_ARGS\n`);
   process.exitCode = exitCode;
 }
